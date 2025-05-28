@@ -23,7 +23,7 @@ jobs:
       - name: Create ZIP archive of selected files
         run: |
           mkdir release
-          cp -r src/ release/
+          cp -r src/. release/
           cd release
           zip -r ../bds_opencart_services.${{ env.TAG }}.ocmod.zip .
         shell: bash
