@@ -1,0 +1,47 @@
+name: Release on tag push
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Set up variables
+        id: vars
+        run: echo "TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+
+      - name: Create ZIP archive of selected files
+        run: |
+          mkdir release
+          cp -r src/ release/
+          cd release
+          zip -r ../bds_opencart_services.${{ env.TAG }}.ocmod.zip .
+        shell: bash
+
+      - name: Create GitHub release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ env.TAG }}
+          release_name: Release ${{ env.TAG }}
+          draft: false
+          prerelease: false
+
+      - name: Upload ZIP as release asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./bds_opencart_services.${{ env.TAG }}.ocmod.zip
+          asset_name: bds_opencart_services.${{ env.TAG }}.ocmod.zip
+          asset_content_type: application/zip
