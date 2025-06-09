@@ -46,6 +46,8 @@ class ControllerExtensionModuleServiceLog extends RestController
         }
 
         if (is_file($path)) {
+            $result['path'] = $path;
+
             $maxPerPage = 1000;
 
             if (isset($this->input['perPage'])) {

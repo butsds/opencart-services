@@ -13,6 +13,8 @@ class Utils
             return htmlspecialchars($data, ENT_COMPAT, 'UTF-8');
         }
 
+        //TODO: add object
+
         return $data;
     }
 
@@ -24,6 +26,8 @@ class Utils
         } elseif (is_string($data)) {
             return html_entity_decode($data, ENT_QUOTES, "UTF-8");
         }
+
+        //TODO: add object
 
         return $data;
     }
