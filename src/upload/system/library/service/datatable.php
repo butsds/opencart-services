@@ -13,11 +13,88 @@ abstract class DataTable extends Model
 {
     protected $pk = '';
     protected $table = '';
+    protected $select_fields = array();
     protected $create_fields = array();
     protected $update_fields = array();
     protected $filter_fields = array();
+    protected $order_fields = array();
     protected $date_added = '';
     protected $date_updated = '';
+
+    public function getInfo()
+    {
+        $result = [
+            'pk' => $this->pk,
+            'columns' => [],
+            'id' => $this->table
+        ];
+
+        $sql = "DESCRIBE `" . DB_PREFIX . $this->table . "`";
+
+        $query = $this->db->query($sql);
+
+        $pattern = '/(tinyint|varchar)\((\d+)\)/';
+
+        $types = [
+            'int' => 'number',
+            'tinyint' => 'number',
+            'tinyint(1)' => 'boolean',
+            'varchar' => 'string',
+            'datetime' => 'string'
+        ];
+
+        $validations = [
+            'string' => 'max_length',
+        ];
+
+        foreach ($query->rows as $row) {
+            if (!empty($this->select_fields) && !in_array($row['Field'], $this->select_fields)) {
+                continue;
+            }
+
+            $validation = null;
+
+            if (isset($types[$row['Type']])) {
+                $type = $types[$row['Type']];
+            } else {
+                $matches = [];
+
+                preg_match($pattern, $row['Type'], $matches);
+
+                if (count($matches) === 3) {
+                    $type = $matches[1];
+
+                    if (isset($types[$type])) {
+                        $type = $types[$type];
+                    } else {
+                        throw new \Exception('Invalid type: ' . $row['Type']);
+                    }
+
+                    if (isset($validations[$type])) {
+                        $validation = $validations[$type] . ':' . $matches[2];
+                    }
+                } else {
+                    throw new \Exception('Invalid type: ' . $row['Type']);
+                }
+            }
+
+            $column = [
+                'key' => $row['Field'],
+                'type' => $type,
+                'order' => in_array($row['Field'], $this->order_fields),
+                'filter' => in_array($row['Field'], $this->filter_fields),
+                'edit' => in_array($row['Field'], $this->create_fields),
+            ];
+
+            if ($validation !== null) {
+                $column['validation'] = $validation;
+            }
+
+            $result['columns'][] = $column;
+        }
+
+        return $result;
+    }
 
     public function get($filterData = array())
     {
@@ -33,12 +110,18 @@ abstract class DataTable extends Model
             $safetyLimit = 0;
         }
 
-        $sql = "SELECT * FROM `" . DB_PREFIX . $this->table . "` " . $this->getFilterSql($filterData);
+        $select_fields = '*';
+
+        if (!empty($this->select_fields)) {
+            $select_fields = implode(',', array_map(function ($field) { return '`' . $field . '`'; }, $this->select_fields));
+        }
+
+        $sql = "SELECT " . $select_fields . " FROM `" . DB_PREFIX . $this->table . "` " . $this->getFilterSql($filterData);
 
         if (!empty($filterData['order']['key']) && !empty($filterData['order']['value'])) {
             $key = $filterData['order']['key'];
 
-            if (in_array($key, $this->filter_fields) and in_array($filterData['order']['value'], ['asc', 'desc'])) {
+            if (in_array($key, $this->order_fields) and in_array($filterData['order']['value'], ['asc', 'desc'])) {
                 $sql .= " ORDER BY `{$key}` {$filterData['order']['value']} ";
             }
         }
@@ -60,7 +143,7 @@ abstract class DataTable extends Model
         return $this->get(['filter' => [$this->pk => $ids]]);
     }
 
-    public function getById(int $id)
+    public function getById($id)
     {
         $data = $this->getByIds([$id]);
 
@@ -82,6 +165,16 @@ abstract class DataTable extends Model
     {
         $values = array();
 
+        if (array_key_exists($this->pk, $data)) {
+            $sql = "SELECT `" . $this->pk . "` FROM `" . DB_PREFIX . $this->table . "` WHERE `" . $this->pk . "` = '" . $this->db->escape($data[$this->pk]) . "'";
+
+            $query = $this->db->query($sql);
+
+            if ($query->num_rows > 0) {
+                throw new \Exception(sprintf('Duplicate key="%s" value="%s" !', $this->pk, $data[$this->pk]));
+            }
+        }
+
         foreach ($this->create_fields as $field) {
             if (isset($data[$field])) {
                 $values[$field] = "`" . $field . "` = '" . $this->db->escape($data[$field]) . "'";
@@ -96,6 +189,10 @@ abstract class DataTable extends Model
             $sql = "INSERT INTO " . DB_PREFIX . $this->table . " SET " . implode(', ', $values) . " ";
 
             $this->db->query($sql);
+
+            if (array_key_exists($this->pk, $data)) {
+                return $data[$this->pk];
+            }
 
             return $this->db->getLastId();
         }
@@ -117,7 +214,9 @@ abstract class DataTable extends Model
             $values[$this->date_updated] = "`" . $this->date_updated . "` = NOW()";
         }
 
-        $safetyIds = array_filter(array_map('intval', $ids), function($id) { return $id > 0; });
+        $safetyIds = array_map(function ($id) {
+            return "'" . $this->db->escape($id) . "'";
+        }, $ids);
 
         if (!empty($values) && !empty($safetyIds)) {
             $sql = "UPDATE " . DB_PREFIX . $this->table . " SET " . implode(', ', $values) . " WHERE `" . $this->pk . "` IN (" . implode(",", $safetyIds) . ")";
@@ -132,7 +231,10 @@ abstract class DataTable extends Model
 
     public function delete(array $ids)
     {
-        $sql = "DELETE FROM " . DB_PREFIX . $this->table . " WHERE `" . $this->pk . "` IN (" . implode(',', array_map('intval', $ids)) . ")";
+        $sql = "DELETE FROM " . DB_PREFIX . $this->table . " WHERE `" . $this->pk . "` IN (" . implode(',', array_map(function($id) {
+            return "'" . $this->db->escape($id) . "'";
+            }, $ids)
+        ) . ")";
 
         $this->db->query($sql);
     }
@@ -145,6 +247,8 @@ abstract class DataTable extends Model
             $data = $this->getById($id);
 
             if (!empty($data)) {
+                unset($data[$this->pk]);
+
                 $insertedId = $this->create($data);
 
                 if ($insertedId) {
@@ -174,6 +278,10 @@ abstract class DataTable extends Model
                     }, $rawValue));
                 } elseif (is_string($rawValue)) {
                     $safetyValue = $this->db->escape($rawValue);
+                } elseif (is_numeric($rawValue)) {
+                    $safetyValue = $rawValue;
+                } elseif (is_bool($rawValue)) {
+                    $safetyValue = (int)$rawValue;
                 } else {
                     throw new \Exception("Invalid Value");
                 }
@@ -182,7 +290,7 @@ abstract class DataTable extends Model
                     if ($key === $this->pk) {
                         $expression = " `%s` = '%s' ";
                     } else {
-                        $expression = " `%s` LIKE '%s' ";
+                        $expression = " `%s` LIKE '%%%s%%' ";
                     }
 
                     if (is_array($rawValue)) {

@@ -6,6 +6,7 @@ namespace Service;
  * @property Response $response
  * @property Request $request
  * @property DataTable $model
+ * @property \Language $language
  */
 class Crud
 {
@@ -13,12 +14,13 @@ class Crud
     protected $request;
     protected $response;
     protected $limit = 10000;
-
+    protected $language;
 
     public function __construct($model)
     {
         $registry = $model->getRegistry();
 
+        $this->language = $registry->get('language');
         $this->model = $model;
         $this->request = new Request($registry);
         $this->response = new Response($registry);
@@ -41,6 +43,17 @@ class Crud
             $result = $this->request->post();
 
             switch ($this->request->post('action')) {
+                case 'info':
+                    $info = $this->model->getInfo();
+
+                    foreach ($info['columns'] as $key => $column) {
+                        $info['columns'][$key]['label'] = $this->language->get('text_column_' . $column['key']);
+                    }
+
+                    $result = $info;
+
+                    break;
+
                 case 'read':
                     $params = $this->request->post('params', []);
 
@@ -59,7 +72,12 @@ class Crud
 
                     break;
                 case 'delete':
-                    $this->model->delete($this->request->post('data', []));
+                    $ids = $this->request->post('data', []);
+
+                    $this->model->delete($ids);
+
+                    $result = $ids;
+
                     break;
                 case 'clone':
                     $ids = $this->model->clone($this->request->post('data', []));
