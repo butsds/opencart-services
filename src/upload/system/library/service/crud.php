@@ -102,7 +102,11 @@ class Crud
                         throw new \Exception('Data empty!');
                     }
 
-                    $this->model->update($data['ids'], $data['data']);
+                    $countAffected = $this->model->update($data['ids'], $data['data']);
+
+                    if ($countAffected === 0) {
+                        throw new \Exception('Nothing updated!');
+                    }
 
                     break;
                 default:

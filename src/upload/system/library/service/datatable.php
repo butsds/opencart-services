@@ -40,7 +40,7 @@ abstract class DataTable extends Model
             'tinyint' => 'number',
             'tinyint(1)' => 'boolean',
             'varchar' => 'string',
-            'datetime' => 'string'
+            'datetime' => 'string',
         ];
 
         $validations = [
@@ -54,14 +54,14 @@ abstract class DataTable extends Model
 
             $validation = null;
 
+            $options = [];
+
             if (isset($types[$row['Type']])) {
                 $type = $types[$row['Type']];
             } else {
                 $matches = [];
 
-                preg_match($pattern, $row['Type'], $matches);
-
-                if (count($matches) === 3) {
+                if (preg_match($pattern, $row['Type'], $matches)) {
                     $type = $matches[1];
 
                     if (isset($types[$type])) {
@@ -74,6 +74,16 @@ abstract class DataTable extends Model
                         $validation = $validations[$type] . ':' . $matches[2];
                     }
                 } else {
+                    $enumPattern = '/enum\((.*)\)/';
+                    
+                    $type = 'string';
+
+                    if (preg_match($enumPattern, $row['Type'], $matches)) {
+                        $options = explode(',', str_replace("'", '', $matches[1]));
+                    }
+                }
+
+                if (empty($matches)) {
                     throw new \Exception('Invalid type: ' . $row['Type']);
                 }
             }
@@ -81,6 +91,7 @@ abstract class DataTable extends Model
             $column = [
                 'key' => $row['Field'],
                 'type' => $type,
+                'options' => $options,
                 'order' => in_array($row['Field'], $this->order_fields),
                 'filter' => in_array($row['Field'], $this->filter_fields),
                 'edit' => in_array($row['Field'], $this->create_fields),
