@@ -1,4 +1,5 @@
 <?php
+
 namespace Service;
 
 /**
@@ -61,8 +62,7 @@ class Crud
 
                     $pagination = Pagination::fromArray($params)
                         ->pluckLimit($this->limit)
-                        ->setTotal($total)
-                    ;
+                        ->setTotal($total);
 
                     $result = $pagination->toArray();
 

@@ -1,12 +1,18 @@
 <?php
-namespace Service;
-use Closure;
 
+namespace Service;
+
+/**
+ * @property \Request $request
+ */
 class Request
 {
     private $request = null;
     private $post = array();
 
+    /**
+     * @param \Registry $registry
+     */
     public function __construct($registry)
     {
         $this->request = $registry->get('request');

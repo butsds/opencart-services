@@ -1,4 +1,5 @@
 <?php
+
 namespace Service;
 
 use DB;
@@ -75,7 +76,7 @@ abstract class DataTable extends Model
                     }
                 } else {
                     $enumPattern = '/enum\((.*)\)/';
-                    
+
                     $type = 'string';
 
                     if (preg_match($enumPattern, $row['Type'], $matches)) {
@@ -124,7 +125,9 @@ abstract class DataTable extends Model
         $select_fields = '*';
 
         if (!empty($this->select_fields)) {
-            $select_fields = implode(',', array_map(function ($field) { return '`' . $field . '`'; }, $this->select_fields));
+            $select_fields = implode(',', array_map(function ($field) {
+                return '`' . $field . '`';
+            }, $this->select_fields));
         }
 
         $sql = "SELECT " . $select_fields . " FROM `" . DB_PREFIX . $this->table . "` " . $this->getFilterSql($filterData);
@@ -242,8 +245,10 @@ abstract class DataTable extends Model
 
     public function delete(array $ids)
     {
-        $sql = "DELETE FROM " . DB_PREFIX . $this->table . " WHERE `" . $this->pk . "` IN (" . implode(',', array_map(function($id) {
-            return "'" . $this->db->escape($id) . "'";
+        $sql = "DELETE FROM " . DB_PREFIX . $this->table . " WHERE `" . $this->pk . "` IN (" . implode(
+            ',',
+            array_map(function ($id) {
+                return "'" . $this->db->escape($id) . "'";
             }, $ids)
         ) . ")";
 
@@ -284,7 +289,7 @@ abstract class DataTable extends Model
                         continue;
                     }
 
-                    $safetyValue = implode(',', array_map(function($val) {
+                    $safetyValue = implode(',', array_map(function ($val) {
                         return "'" . $this->db->escape($val) . "'";
                     }, $rawValue));
                 } elseif (is_string($rawValue)) {

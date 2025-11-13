@@ -6,23 +6,21 @@ class ControllerExtensionModuleServiceLog extends RestController
 {
     protected function getLogPath()
     {
-        if (empty($this->request->get['name'])) {
-            throw new \Exception('Log name is required');
-        }
+        $name = $this->serviceRequest->get('name', new \Exception('Log name is required'));
 
-        if (!is_string($this->request->get['name'])) {
+        if (!is_string($name)) {
             throw new \Exception('Log name must be a string');
         }
 
         $matches = [];
 
-        preg_match('/^[a-z_]+$/', $this->request->get['name'], $matches);
+        preg_match('/^[a-z_]+$/', $name, $matches);
 
         if (empty($matches[0])) {
             throw new \Exception('Log name must [a-z_]+');
         }
 
-        return DIR_LOGS . $this->request->get['name'] . '.log';
+        return DIR_LOGS . $name . '.log';
     }
 
     protected function getAction()
@@ -35,11 +33,7 @@ class ControllerExtensionModuleServiceLog extends RestController
 
         $path = $this->getLogPath();
 
-        if (!isset($this->input['page'])) {
-            throw new \Exception('Page is required');
-        }
-
-        $page = (int)$this->input['page'];
+        $page = (int) $this->serviceRequest->post('page', new \Exception('Page is required'));
 
         if ($page < 1) {
             throw new \Exception('Page number cannot be less than 1');
@@ -50,11 +44,7 @@ class ControllerExtensionModuleServiceLog extends RestController
 
             $maxPerPage = 1000;
 
-            if (isset($this->input['perPage'])) {
-                $perPage = (int)$this->input['perPage'];
-            } else {
-                $perPage = $maxPerPage;
-            }
+            $perPage = $this->serviceRequest->post('perPage', $maxPerPage);
 
             if ($perPage > $maxPerPage) {
                 $perPage = $result['perPage'] = $maxPerPage;
@@ -127,6 +117,10 @@ class ControllerExtensionModuleServiceLog extends RestController
 
     protected function downloadAction()
     {
+        if (!$this->user->hasPermission('access', 'tool/log')) {
+            throw new \Exception($this->language->get('error_permission'));
+        }
+
         $file = $this->getLogPath();
 
         if (!is_file($file)) {

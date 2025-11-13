@@ -1,6 +1,3 @@
 <?php
 
-class ControllerExtensionModuleService extends Controller
-{
-
-}
+class ControllerExtensionModuleService extends Controller {}

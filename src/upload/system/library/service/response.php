@@ -1,5 +1,13 @@
 <?php
+
 namespace service;
+
+/**
+ * Response class to handle JSON responses.
+ *
+ * @property \Response $response
+ */
+
 class Response
 {
     public $message = null;
